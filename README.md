@@ -1,6 +1,7 @@
+
 # Spotify Simulation Data Pipeline (Local)
 
-This project simulates a Spotify-like batch data pipeline using real metadata and synthetic user activity — built entirely locally using Python, PostgreSQL (via Docker), and CSV ingestion.
+This project simulates a Spotify-like batch data pipeline using real track metadata and synthetic user activity. It's built fully locally using Python, PostgreSQL (via Docker), dbt for modeling, and Streamlit for interactive dashboards.
 
 ---
 
@@ -9,60 +10,131 @@ This project simulates a Spotify-like batch data pipeline using real metadata an
 ```plaintext
 spotify_de_project/
 ├── data/
-│ ├── spotify_tracks.csv
-│ ├── users.csv
-│ └── user_activity_<YYYY-MM-DD>.csv
+│   ├── spotify_tracks.csv
+│   ├── users.csv
+│   └── user_activity_<YYYY-MM-DD>.csv
+├── dashboard.py
 ├── docker-compose.yml
+├── .env
+├── collect_songs.py
 ├── generate_users.py
 ├── generate_user_activity.py
-├── collect_songs.py
 ├── load_csvs_to_postgres.py
+├── spotify_dbt/
+│   ├── dbt_project.yml
+│   ├── models/
+│   │   ├── raw/
+│   │   ├── staging/
+│   │   └── dw/
 └── README.md
 ```
+
 ---
 
 ## ✅ Steps to Run Locally
 
 ### 1. Install Dependencies
+Run:
 ```bash
 pip install -r requirements.txt
 ```
-Or install manually:
 
+Or manually:
+```bash
+pip install spotipy pandas faker psycopg2-binary python-dotenv streamlit sqlalchemy
 ```
-pip install spotipy pandas faker psycopg2-binary python-dotenv
-```
-### 2. Set Up PostgreSQL with Docker
-```
+
+### 2. Set Up PostgreSQL (via Docker)
+Run:
+```bash
 docker compose up -d
 ```
-### 3. Collect Spotify Songs (1st-time only)
-```
-python collect_songs.py
-```
-### 4. Generate Users (1st-time only)
-```
-python generate_users.py
-```
-### 5. Simulate Listening Activity (can be run daily)
-```
-python generate_user_activity.py
-```
-### 6. Load Data into Postgres
-```
+
+### 3. Collect Metadata & Generate Synthetic Data
+- **Spotify tracks (one-time):**
+    ```bash
+    python collect_songs.py
+    ```
+- **Users (one-time):**
+    ```bash
+    python generate_users.py
+    ```
+- **Daily listening events (can be run repeatedly):**
+    ```bash
+    python generate_user_activity.py
+    ```
+
+### 4. Load Data into Postgres
+Includes ETL logging to avoid reprocessing already loaded files:
+```bash
 python load_csvs_to_postgres.py
 ```
----
-## 🔮 Next Steps
- - Add dbt transformations: stg_, dim_, fact_
- - Create visual dashboards using Streamlit
- - Containerize the app for easier sharing
- - Abstract cloud-compatible pieces (e.g., S3 staging, Airflow DAGs)
- - Publish to GitHub with clean README, schema diagrams, and demo GIFs
 
 ---
+
+## 🧱 Data Stack
+
+- **Storage:** PostgreSQL (via Docker)
+- **Ingestion:** Python scripts + Pandas
+- **Modeling:** dbt with layered approach (raw → staging → DW)
+- **Dashboarding:** Streamlit
+- **Orchestration (upcoming):** Airflow DAGs (planned)
+
+---
+
+## 📊 Dashboards
+
+Run:
+```bash
+streamlit run dashboard.py
+```
+
+The dashboard includes:
+- Total listens per day (line chart)
+- Top genres and artists (bar charts)
+- Skips vs completions
+- Interactive filters by user, genre, artist
+
+---
+
+## 🛠 dbt Overview
+
+Your dbt project (`spotify_dbt`) includes:
+- **Source definitions:** Raw data from Postgres
+- **Staging models:** Cleaned column naming & type casting
+- **Fact & Dimension tables:**
+    - `dim_users`, `dim_songs`
+    - `fact_user_listening` (incremental by `event_id`)
+- **Materializations:**
+    - Views for staging
+    - Tables for dimension
+    - Incremental for fact
+
+To run:
+```bash
+cd spotify_dbt
+dbt build
+```
+
+---
+
+## 🔮 Roadmap
+
+- Add dbt models for transformations
+- Implement Streamlit dashboard
+- Add incremental load for fact table
+- Skip already loaded CSVs via ETL log
+- Orchestrate with Airflow DAG
+- Move to cloud (e.g., Snowflake + S3)
+- Add Dockerized API for pipeline triggers
+
+---
+
 ## 💡 Project Goals
-- Build a complete DE project for GitHub/portfolio
-- Simulate user-centric streaming behavior
-- Practice ingestion, warehousing, and analytics
-- Optionally transition to a cloud-native pipeline (Snowflake + S3 + Airflow)
+
+- End-to-end simulation of a modern data pipeline
+- Practice ingestion, modeling, and analytics
+- Build a project suitable for portfolio/GitHub
+- Enable future transition to cloud-native architecture
+
+---
