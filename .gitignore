@@ -1,3 +1,6 @@
 venv/*
 .env
 data/*
+spotify_dbt/target/*
+spotify_dbt/dbt_packages/*
+spotify_dbt/logs/*
