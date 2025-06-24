@@ -72,6 +72,18 @@ CREATE TABLE IF NOT EXISTS user_activity (
 );
 """)
 
+cur.execute("""
+CREATE TABLE IF NOT EXISTS etl_log (
+    file_name TEXT PRIMARY KEY,
+    loaded_at TIMESTAMP DEFAULT NOW()
+);
+""")
+
+# ---------- UTILITY: Check if file already loaded ----------
+def is_file_already_loaded(file_name):
+    cur.execute("SELECT 1 FROM etl_log WHERE file_name = %s", (file_name,))
+    return cur.fetchone() is not None
+
 # ---------- LOAD USERS & SONGS ----------
 def load_table_from_csv(table_name, csv_path):
     cur.execute(f"SELECT COUNT(*) FROM {table_name};")
@@ -95,13 +107,20 @@ def load_table_from_csv(table_name, csv_path):
 for tbl, path in TABLES.items():
     load_table_from_csv(tbl, path)
 
-# ---------- LOAD ALL ACTIVITY FILES ----------
+# ---------- LOAD ALL NEW ACTIVITY FILES ----------
 activity_files = sorted(glob(ACTIVITY_PATTERN))
 total_events = 0
 
 for file in activity_files:
-    print(f"📥 Loading activity file: {file}")
+    file_name = os.path.basename(file)
+
+    if is_file_already_loaded(file_name):
+        print(f"⏩ Skipping {file_name}: already loaded.")
+        continue
+
+    print(f"📥 Loading activity file: {file_name}")
     df = pd.read_csv(file)
+
     for _, row in df.iterrows():
         values = tuple(row)
         sql = """
@@ -112,9 +131,12 @@ for file in activity_files:
         ON CONFLICT (event_id) DO NOTHING;
         """
         cur.execute(sql, values)
+
+    # Mark this file as loaded
+    cur.execute("INSERT INTO etl_log (file_name) VALUES (%s)", (file_name,))
     total_events += len(df)
 
-print(f"✅ Loaded {total_events} total events into user_activity.")
+print(f"✅ Loaded {total_events} new events into user_activity.")
 
 # ---------- CLEANUP ----------
 cur.close()

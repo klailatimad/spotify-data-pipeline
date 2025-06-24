@@ -48,7 +48,7 @@ for _, user in users_df.iterrows():
             hours=rand_hour, minutes=rand_min, seconds=rand_sec)
 
         activity.append({
-            'event_id': f"E{event_counter:07}",
+            'event_id': f"{TODAY.strftime('%Y%m%d')}_E{event_counter:07}",
             'user_id': user['user_id'],
             'track_id': song['track_id'],
             'timestamp': timestamp,
