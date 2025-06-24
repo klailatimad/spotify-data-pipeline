@@ -1,0 +1,10 @@
+version: 2
+
+sources:
+  - name: public
+    schema: public
+    database: spotify_dw  # Optional if it's your default
+    tables:
+      - name: songs
+      - name: users
+      - name: user_activity
