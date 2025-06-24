@@ -31,6 +31,13 @@ clean-targets:         # directories to be removed by `dbt clean`
 # files using the `{{ config(...) }}` macro.
 models:
   spotify_dbt:
-    # Config indicated by + and applies to all files under models/example/
-    example:
+    +materialized: view  # default for all models
+    
+    raw:
       +materialized: view
+
+    staging:
+      +materialized: view
+
+    dw:
+      +materialized: table  # override to persist fact/dim tables
