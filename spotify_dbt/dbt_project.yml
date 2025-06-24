@@ -34,10 +34,13 @@ models:
     +materialized: view  # default for all models
     
     raw:
+      +schema: raw
       +materialized: view
 
     staging:
+      +schema: staging
       +materialized: view
 
     dw:
+      +schema: dw
       +materialized: table  # override to persist fact/dim tables
