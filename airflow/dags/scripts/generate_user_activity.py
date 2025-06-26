@@ -6,10 +6,13 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 # -------- SETTINGS --------
-SONGS_FILE = "data/spotify_tracks.csv"
-USERS_FILE = "data/users.csv"
+# SONGS_FILE = "data/spotify_tracks.csv" # Path for local testing
+SONGS_FILE = "/opt/airflow/data/spotify_tracks.csv" 
+# USERS_FILE = "data/users.csv" # Path for local testing
+USERS_FILE = "/opt/airflow/data/users.csv" # Path for Airflow
 TODAY = datetime.today().date()
-OUTPUT_FILE = f"data/user_activity_{TODAY}.csv"
+# OUTPUT_FILE = f"data/user_activity_{TODAY}.csv" # Path for local testing
+OUTPUT_FILE = f"/opt/airflow/data/user_activity_{TODAY}.csv" # Path for Airflow
 
 DEVICE_TYPES = ['mobile', 'desktop', 'web', 'tablet']
 
