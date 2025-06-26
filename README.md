@@ -1,7 +1,6 @@
-
 # Spotify Simulation Data Pipeline (Local)
 
-This project simulates a Spotify-like batch data pipeline using real track metadata and synthetic user activity. It's built fully locally using Python, PostgreSQL (via Docker), dbt for modeling, and Streamlit for interactive dashboards.
+This project simulates a Spotify-like batch data pipeline using real track metadata and synthetic user activity. It runs entirely locally using Python, PostgreSQL (via Docker), dbt for modeling, Airflow for orchestration, and Streamlit for interactive dashboards.
 
 ---
 
@@ -9,17 +8,20 @@ This project simulates a Spotify-like batch data pipeline using real track metad
 
 ```plaintext
 spotify_de_project/
-├── data/
-│   ├── spotify_tracks.csv
-│   ├── users.csv
-│   └── user_activity_<YYYY-MM-DD>.csv
+├── airflow/
+│   ├── dags/
+│   │   ├── spotify_etl_dag.py
+│   │   └── scripts/
+│   │       ├── generate_user_activity.py
+│   │       └── load_csvs_to_postgres.py
+│   ├── logs/            # (ignored)
+│   └── plugins/
+├── data/                # Raw CSVs (ignored)
 ├── dashboard.py
 ├── docker-compose.yml
 ├── .env
 ├── collect_songs.py
 ├── generate_users.py
-├── generate_user_activity.py
-├── load_csvs_to_postgres.py
 ├── spotify_dbt/
 │   ├── dbt_project.yml
 │   ├── models/
@@ -28,113 +30,99 @@ spotify_de_project/
 │   │   └── dw/
 └── README.md
 ```
-
 ---
+### ✅ Steps to Run Locally
+1. Install Python Dependencies
+`pip install -r requirements.txt`
 
-## ✅ Steps to Run Locally
+	Or manually:
 
-### 1. Install Dependencies
-Run:
-```bash
-pip install -r requirements.txt
-```
+	`pip install spotipy pandas faker psycopg2-binary python-dotenv streamlit sqlalchemy`
 
-Or manually:
-```bash
-pip install spotipy pandas faker psycopg2-binary python-dotenv streamlit sqlalchemy
-```
+2. Start the Docker Environment
+This includes PostgreSQL and Airflow (scheduler & webserver):
+`docker compose up -d`
+> Wait ~1 minute for Airflow to finish initializing.
 
-### 2. Set Up PostgreSQL (via Docker)
-Run:
-```bash
-docker compose up -d
-```
+3. Access the Airflow UI
+- Visit http://localhost:8080
+   - Username: `airflow`
+   - Password: `airflow`
 
-### 3. Collect Metadata & Generate Synthetic Data
-- **Spotify tracks (one-time):**
-    ```bash
-    python collect_songs.py
-    ```
-- **Users (one-time):**
-    ```bash
-    python generate_users.py
-    ```
-- **Daily listening events (can be run repeatedly):**
-    ```bash
-    python generate_user_activity.py
-    ```
-
-### 4. Load Data into Postgres
-Includes ETL logging to avoid reprocessing already loaded files:
-```bash
-python load_csvs_to_postgres.py
-```
-
+- Enable and trigger the DAG: `spotify_etl_pipeline`.
+It will:
+  - Simulate and save new user activity
+  - Load new data into PostgreSQL
+  - Avoid reloading previously processed files using an etl_log table
 ---
-
-## 🧱 Data Stack
-
-- **Storage:** PostgreSQL (via Docker)
-- **Ingestion:** Python scripts + Pandas
-- **Modeling:** dbt with layered approach (raw → staging → DW)
-- **Dashboarding:** Streamlit
-- **Orchestration (upcoming):** Airflow DAGs (planned)
-
----
-
-## 📊 Dashboards
-
-Run:
-```bash
-streamlit run dashboard.py
-```
+### 📈 Running the Dashboard
+Once the data is loaded:
+`streamlit run dashboard.py`
 
 The dashboard includes:
-- Total listens per day (line chart)
-- Top genres and artists (bar charts)
-- Skips vs completions
-- Interactive filters by user, genre, artist
 
+ - Total listens per day (line chart)
+ - Top genres and artists (bar charts)
+ - Skips vs completions   
+ - Interactive filters (user, genre, artist)
 ---
-
-## 🛠 dbt Overview
-
-Your dbt project (`spotify_dbt`) includes:
-- **Source definitions:** Raw data from Postgres
-- **Staging models:** Cleaned column naming & type casting
-- **Fact & Dimension tables:**
+### 🛠 Data Stack
+|Layer|	Tool|
+|-----|-----|
+|Storage|	PostgreSQL (Docker)|
+|Ingestion|	Python (Pandas, Spotipy)|
+|Orchestration|	Apache Airflow|
+|Modeling|	dbt (raw → staging → DW)|
+|Analytics	|Streamlit|
+---
+### 💾 dbt Overview
+Your dbt project (spotify_dbt) includes:
+- Sources: Raw Postgres tables
+- Staging Models: Column renaming, typing
+- Warehouse Tables:
     - `dim_users`, `dim_songs`
-    - `fact_user_listening` (incremental by `event_id`)
-- **Materializations:**
-    - Views for staging
-    - Tables for dimension
-    - Incremental for fact
+    - `fact_user_listening` (incremental on `event_id`)
 
-To run:
-```bash
+To run dbt:
+```
 cd spotify_dbt
 dbt build
 ```
+---
+🔄 Airflow DAG
+DAG: `spotify_etl_pipeline`
+Tasks:
+- `generate_user_activity`
+   Simulates daily user behavior and writes to CSV
+- `load_csvs_to_postgres`
+Loads new CSVs into Postgres, skipping previously loaded files
+
+The DAG is scheduled to run once per day.
 
 ---
 
-## 🔮 Roadmap
+### 🗺️ Roadmap
+- [X] Setup local PostgreSQL + Airflow
 
-- Add dbt models for transformations
-- Implement Streamlit dashboard
-- Add incremental load for fact table
-- Skip already loaded CSVs via ETL log
-- Orchestrate with Airflow DAG
-- Move to cloud (e.g., Snowflake + S3)
-- Add Dockerized API for pipeline triggers
+ - [X] Automate user activity simulation via DAG
+
+-  [X] Add ETL logging to prevent duplicates
+
+ - [X] Build dashboard with filters
+
+ - [x] Use dbt for transformations
+
+ - [ ] Add dashboard update step to DAG
+
+ - [ ] Abstract ingestion logic for reuse
+
+ - [ ] Extend data with users, devices, genres, etc.
+
+ - [ ] Optionally move pipeline to the cloud (e.g., S3 + Snowflake)
 
 ---
-
-## 💡 Project Goals
-
-- End-to-end simulation of a modern data pipeline
-- Practice ingestion, modeling, and analytics
-- Build a project suitable for portfolio/GitHub
-- Enable future transition to cloud-native architecture
-
----
+### 🎯 Project Goals
+- Simulate a realistic batch analytics pipeline
+- Practice orchestration, modeling, and dashboards
+- Showcase a complete DE project in a local dev setup
+- Build a foundation to evolve into a cloud-native stack
