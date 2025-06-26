@@ -5,3 +5,4 @@ spotify_dbt/target/*
 spotify_dbt/dbt_packages/*
 spotify_dbt/logs/*
 logs/*
+airflow/logs/*

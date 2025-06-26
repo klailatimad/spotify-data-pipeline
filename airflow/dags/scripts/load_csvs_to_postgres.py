@@ -6,7 +6,9 @@ from datetime import datetime
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
-load_dotenv()
+# load_dotenv() # for local development
+load_dotenv("/opt/airflow/.env") # for Airflow deployment
+
 
 # ---------- SETTINGS ----------
 DB_NAME = os.getenv("DB_NAME")
@@ -15,7 +17,16 @@ DB_PASSWORD = os.getenv("DB_PASSWORD")
 DB_HOST = os.getenv("DB_HOST")
 DB_PORT = os.getenv("DB_PORT")
 
-DATA_DIR = "data"
+# Local deployment
+# DATA_DIR = "data"
+# ACTIVITY_PATTERN = os.path.join(DATA_DIR, "user_activity_*.csv")
+# TABLES = {
+#     "users": os.path.join(DATA_DIR, "users.csv"),
+#     "songs": os.path.join(DATA_DIR, "spotify_tracks.csv")
+# }
+
+# Airflow deployment
+DATA_DIR = "/opt/airflow/data"
 ACTIVITY_PATTERN = os.path.join(DATA_DIR, "user_activity_*.csv")
 TABLES = {
     "users": os.path.join(DATA_DIR, "users.csv"),
@@ -93,7 +104,8 @@ def load_table_from_csv(table_name, csv_path):
         return
 
     print(f"📥 Loading {table_name} from {csv_path}...")
-    df = pd.read_csv(csv_path).drop_duplicates(subset=[df.columns[0]])
+    df = pd.read_csv(csv_path)
+    df = df.drop_duplicates(subset=[df.columns[0]])
     for _, row in df.iterrows():
         columns = ', '.join(row.index)
         values = ', '.join(['%s'] * len(row))
@@ -119,24 +131,31 @@ for file in activity_files:
         continue
 
     print(f"📥 Loading activity file: {file_name}")
-    df = pd.read_csv(file)
+    try:
+        df = pd.read_csv(file)
+        rows_loaded = 0
 
-    for _, row in df.iterrows():
-        values = tuple(row)
-        sql = """
-        INSERT INTO user_activity (
-            event_id, user_id, track_id, timestamp, duration_ms,
-            completed, skipped, device_type, location
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-        ON CONFLICT (event_id) DO NOTHING;
-        """
-        cur.execute(sql, values)
+        for _, row in df.iterrows():
+            values = tuple(row)
+            sql = """
+            INSERT INTO user_activity (
+                event_id, user_id, track_id, timestamp, duration_ms,
+                completed, skipped, device_type, location
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (event_id) DO NOTHING;
+            """
+            cur.execute(sql, values)
+            rows_loaded += 1
 
-    # Mark this file as loaded
-    cur.execute("INSERT INTO etl_log (file_name) VALUES (%s)", (file_name,))
-    total_events += len(df)
+        # Mark this file as loaded
+        cur.execute("INSERT INTO etl_log (file_name) VALUES (%s)", (file_name,))
+        total_events += rows_loaded
+        print(f"✅ Loaded {rows_loaded} new events from {file_name} into user_activity.")
 
-print(f"✅ Loaded {total_events} new events into user_activity.")
+    except Exception as e:
+        print(f"❌ Failed to load {file_name}: {e}")
+
+print(f"🏁 Done. Total new events loaded: {total_events}")
 
 # ---------- CLEANUP ----------
 cur.close()
